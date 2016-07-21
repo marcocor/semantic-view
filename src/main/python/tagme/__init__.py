@@ -41,7 +41,7 @@ class Response():
         return "{}msec, {} annotations".format(self.time, len(self.annotations))
 
 def annotate(text, gcube_token, lang=DEFAULT_LANG, api=DEFAULT_API):
-        payload = {"text": text.encode("utf-8"), "gcube-token":gcube_token, "long_text": 3}
+        payload = {"text": text.encode("utf-8"), "gcube-token":gcube_token, "long_text": 3, "lang": lang}
         r = requests.post(api, payload)
         logging.debug("Calling {}".format(r.url))
         if r.status_code != 200:
