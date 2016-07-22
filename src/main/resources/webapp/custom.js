@@ -1,4 +1,5 @@
 var filterEntities = []
+var MAX_ENTITY_FONT_SIZE = 260
 
 $(document).ready(function() {
 	updateFilterMenu()
@@ -7,7 +8,6 @@ $(document).ready(function() {
 
 function updateFilterMenu() {
 	$("#filter-buttons").empty()
-	console.log(filterEntities)
 	$.each(filterEntities, function(i, entity) {
 		$("#filter-buttons").append($("<button>").attr("type", "button").attr("class", "btn btn-primary").attr("entity", entity).click(buttonClicked).html(entity))
 	})
@@ -50,10 +50,17 @@ function fillIn() {
 	var frequencyAPI = "rest/frequency";
 	$.getJSON(frequencyAPI, {
 		entities : filterEntities.join("$$$"),
+		limit:100,
 	}).done(
 			function(data) {
+				var maxFreq = -1
 				$.each(data.frequencies, function(i, freq) {
-					listFrequencies.push([ freq.entity, freq.frequency ])
+					if (freq.frequency > maxFreq)
+						maxFreq = freq.frequency
+				});
+				
+				$.each(data.frequencies, function(i, freq) {
+					listFrequencies.push([ freq.entity, freq.frequency / maxFreq * MAX_ENTITY_FONT_SIZE ])
 				});
 
 				$("#document-ids-list").empty()
@@ -68,7 +75,6 @@ function fillIn() {
 				WordCloud(c, {
 					list : listFrequencies,
 					click : entityClicked,
-					minSize : 12,
 				});
 
 			}).fail(function(jqxhr, textStatus, error) {
