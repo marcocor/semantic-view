@@ -16,6 +16,7 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.Vector;
 
+import javax.ws.rs.DefaultValue;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
@@ -42,8 +43,9 @@ import it.unipi.di.acube.semanticview.Document;
 @Path("/")
 public class RestService {
 	private final static Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
-	private final static HashMap<String, Document> keyToDocs = new HashMap<>();
-	private final static HashMap<String, Set<Annotation>> keyToEntities = new HashMap<>();
+	private final static Map<String, Document> keyToDocs = new HashMap<>();
+	private final static Map<String, Set<Annotation>> keyToEntities = new HashMap<>();
+	private final static Set<String> ignoredEntities = new HashSet<>();
 
 	public static void initialize(String documentDirectory, String entityDirectory) throws FileNotFoundException, IOException {
 		LOG.info("Reading documents from {}, entities from {}", documentDirectory, entityDirectory);
@@ -91,9 +93,21 @@ public class RestService {
 	}
 	
 	@GET
+	@Path("/ignore")
+	@Produces({ MediaType.APPLICATION_JSON })
+	public String ignoreEntity(@QueryParam("entity") String entity) throws JSONException {
+		ignoredEntities.add(entity);
+		JSONObject result = new JSONObject();
+		result.put("ignored", entity);
+		result.put("ignored-entities", ignoredEntities.size());
+		return result.toString();
+	}
+	
+	@GET
 	@Path("/frequency")
 	@Produces({ MediaType.APPLICATION_JSON })
-	public String getEntityFrequency(@QueryParam("entities") String entitiesStr) throws JSONException {
+	public String getEntityFrequency(@QueryParam("entities") String entitiesStr, @QueryParam("limit") @DefaultValue("100") String limitStr) throws JSONException {
+		int limit = Integer.parseInt(limitStr);
 		String[] entities = Arrays.stream(entitiesStr.split("\\$\\$\\$")).filter(e -> !e.isEmpty()).toArray(String[]::new);
 		LOG.info("Entities in query ({}): {}", entities.length, entitiesStr);
 
@@ -101,13 +115,14 @@ public class RestService {
 		Map<String, Integer> frequencies = new HashMap<>();
 		for (String key : keyToEntities.keySet()) {
 			Set<Annotation> annotations = keyToEntities.get(key);
-			if (Arrays.stream(entities).allMatch(e -> annotations.stream().anyMatch(a -> a.entityTitle.equals(e)))) {
+			if (Arrays.stream(entities).filter(e -> !ignoredEntities.contains(e)).allMatch(e -> annotations.stream().filter(a -> !ignoredEntities.contains(a.entityTitle)).anyMatch(a -> a.entityTitle.equals(e)))) {
 				matchedKeys.add(key);
 				for (Annotation a : annotations)
-					if (!frequencies.containsKey(a.entityTitle))
-						frequencies.put(a.entityTitle, 1);
-					else
-						frequencies.put(a.entityTitle, frequencies.get(a.entityTitle) + 1);
+					if (!ignoredEntities.contains(a.entityTitle))
+						if (!frequencies.containsKey(a.entityTitle))
+							frequencies.put(a.entityTitle, 1);
+						else
+							frequencies.put(a.entityTitle, frequencies.get(a.entityTitle) + 1);
 			}
 		}
 
@@ -118,6 +133,8 @@ public class RestService {
 
 		List<Entry<String, Integer>> orderedFreq = new Vector<>(frequencies.entrySet());
 		orderedFreq.sort(new ReverseComparator<Entry<String, Integer>>(Map.Entry.comparingByValue()));
+		if (limit >= 0)
+			orderedFreq = orderedFreq.subList(0, Math.min(limit, orderedFreq.size()));
 		for (Entry<String, Integer> entry : orderedFreq) {
 			JSONObject jsonFrequency = new JSONObject();
 			jsonFrequency.put("entity", entry.getKey());
@@ -129,7 +146,7 @@ public class RestService {
 		JSONObject result = new JSONObject();
 		result.put("frequencies", jsonFrequencies);
 		result.put("document_ids", jsonKeys);
-		result.put("entities", jsonFrequencies.length());
+		result.put("entities", frequencies.values().stream().mapToInt(i -> i.intValue()).sum());
 		result.put("documents", jsonKeys.length());
 
 		return result.toString();
