@@ -80,7 +80,16 @@ public class RestService {
 		}
 		LOG.info("Loaded {} documents ({} with entities), {} entities", keyToDocs.size(), keyToEntities.size(), nEntities);
 	}
-
+	@GET
+	@Path("/document")
+	@Produces({ MediaType.APPLICATION_JSON })
+	public String getDocument(@QueryParam("docId") String documentId) throws JSONException {
+		JSONObject result = new JSONObject();
+		result.put("body", keyToDocs.get(documentId).body);
+		result.put("title", keyToDocs.get(documentId).title);
+		return result.toString();
+	}
+	
 	@GET
 	@Path("/frequency")
 	@Produces({ MediaType.APPLICATION_JSON })
