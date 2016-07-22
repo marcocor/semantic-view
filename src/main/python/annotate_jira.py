@@ -6,12 +6,19 @@ import os
 import logging
 import argparse
 import tagme
+import re
 from scipy.weave.converters import default
+
+MAIL_REGEX = r"\w+@[a-zA-Z_]+?\.[a-zA-Z]{2,3}"
+URL_REGEX = r"(https?|ftp)://[^\s/$.?#].[^\s]*"
+
+def clean_text(text):
+    return re.sub("({})|({})".format(MAIL_REGEX, URL_REGEX), " ", text)
 
 def item_to_data(item):
     key = item.findtext("key")
     title = item.findtext("title")
-    body = html2text(item.findtext("description"))
+    body = clean_text(html2text(item.findtext("description")))
     time_str = item.xpath('./customfields/customfield[customfieldname = "Data invio mail"]/customfieldvalues/customfieldvalue/text()')[0]
     time = dateparser.parse(time_str)
     if not time:
