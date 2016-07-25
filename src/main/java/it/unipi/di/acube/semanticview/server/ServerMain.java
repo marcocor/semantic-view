@@ -10,6 +10,7 @@ import org.glassfish.grizzly.http.server.HttpServer;
 import org.glassfish.grizzly.http.server.StaticHttpHandler;
 import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpServerFactory;
 import org.glassfish.jersey.server.ResourceConfig;
+import org.glassfish.jersey.server.ServerProperties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,6 +36,7 @@ public class ServerMain {
 		RestService.initialize(documentsDir, entitiesDir);
 
 		ResourceConfig rc = new ResourceConfig().packages("it.unipi.di.acube.semanticview.server.rest");
+		rc.property(ServerProperties.RESPONSE_SET_STATUS_OVER_SEND_ERROR, "true");
 		StaticHttpHandler staticHandler = new StaticHttpHandler("src/main/resources/webapp/");
 
 		HttpServer httpServer = GrizzlyHttpServerFactory.createHttpServer(URI.create(serverUri), rc);
