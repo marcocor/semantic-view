@@ -1,6 +1,7 @@
 var MAX_ENTITY_FONT_SIZE = 260
 var MIN_ENTITY_FONT_SIZE = 8
 var filterEntities = []
+var ignoredEntities = []
 var dateRangeBegin = null
 var dateRangeEnd = null
 
@@ -16,25 +17,92 @@ $("#chart-placeholder").bind("plotunselected", function(event) {
 	redrawAll();
 });
 
+$("#show-ignored-entities").click(function() {
+	$("#ignored-entities-modal").modal();
+});
+
+$("#clear-entity-filter-button").click(function(){
+	filterEntities = [];
+	redrawAll();
+});
+
 $(document).ready(redrawAll());
+
+ignoreEntityButtonClicked(null);
 
 function redrawAll() {
 	updateFilterMenu()
 	fillIn()
 	populateChart()
+	populateIgnoredEntities()
+}
+
+function populateIgnoredEntities(){
+	$("#number-ignored-entities").html($("<strong>").html(ignoredEntities.length));
+	
+	$("#ignored-entities-list").empty();
+	
+	if (!ignoredEntities.length)
+		$("#ignored-entities-list").append(
+				$("<li>").attr("class", "list-group-item").html("No ignored entities."))
+		
+	$.each(ignoredEntities, function(i, entity) {
+		$("#ignored-entities-list").append(
+			$("<li>").attr("class", "list-group-item")
+			.append(entity + " (")
+			.append(
+				$("<a>")
+				.attr("href", "#")
+				.click(function(){unignore(entity)})
+				.html("re-enable")
+			)
+			.append(")")
+		)
+	})
 }
 
 function updateFilterMenu() {
+	if (filterEntities.length)
+		$("#clear-entity-filter-button").show()
+	else
+		$("#clear-entity-filter-button").hide()
+	
 	$("#filter-buttons").empty();
 	$.each(filterEntities, function(i, entity) {
 		$("#filter-buttons").append(
-				$("<button>")
-				.attr("type", "button")
-				.attr("class", "btn btn-primary")
-				.attr("entity", entity)
-				.click(buttonClicked)
-				.html(entity));
-	})
+				$("<div>").attr("class", "btn-group")
+				.append(
+					$("<button>")
+					.attr("type", "button")
+					.attr("class", "btn btn-primary")
+					.attr("entity", entity)
+					.click(entityFilterButtonClicked)
+					.html(entity)
+					)
+					.append(
+							$("<button>")
+							.attr("type", "button")
+							.attr("class", "btn btn-primary dropdown-toggle")
+							.attr("data-toggle", "dropdown")
+							.attr("aria-haspopup", "true")
+							.attr("aria-expanded", "false")
+							.append($("<span>").attr("class", "caret"))
+							.append($("<span>").attr("class", "sr-only").html("Toggle dropdown"))
+					)
+					.append (
+							$("<ul>")
+							.attr("class", "dropdown-menu")
+							.append($("<li>").append(
+									$("<a>")
+									.attr("href", "#")
+									.attr("entity", entity)
+									.click(function(){ignoreEntityButtonClicked($(this).attr("entity"))})
+									.html("Ignore entity")
+									)
+							)
+					)
+		)
+	});
 }
 
 function docIdClicked() {
@@ -53,11 +121,38 @@ function docIdClicked() {
 	$("#document-modal").modal();
 }
 
-function buttonClicked() {
+function entityFilterButtonClicked() {
 	var entity = $(this).attr("entity")
 	filterEntities.splice(filterEntities.indexOf(entity), 1);
 
 	redrawAll();
+}
+
+function unignore(entity) {
+	$.getJSON("rest/unignore", {
+		entity : entity,
+	}).done(function(data) {
+		ignoredEntities = data.ignoredEntities;
+		redrawAll();
+	}).fail(function(jqxhr, textStatus, error) {
+		var err = textStatus + ", " + error;
+		alert("Request Failed: " + err);
+	});
+}
+
+function ignoreEntityButtonClicked(entity) {
+	if (filterEntities.indexOf(entity) >= 0)
+		filterEntities.splice(filterEntities.indexOf(entity), 1);
+	
+	$.getJSON("rest/ignore", {
+		entity : entity,
+	}).done(function(data) {
+		ignoredEntities = data.ignoredEntities;
+		redrawAll();
+	}).fail(function(jqxhr, textStatus, error) {
+		var err = textStatus + ", " + error;
+		alert("Request Failed: " + err);
+	});
 }
 
 function entityClicked(item) {
@@ -119,8 +214,8 @@ function fillIn() {
 						$("#document-ids-list").empty();
 						$.each(data.document_ids.slice(0, 20), function(i, docId) {
 							$("#document-ids-list").append(
-									$("<li>")
-									.attr("class", "list-group-item")
+									$("<button>")
+									.attr("class", "btn btn-default")
 									.attr("doc-id", docId)
 									.click(docIdClicked)
 									.html(docId))
