@@ -43,15 +43,20 @@
 	</nav>
 	<div class="container-fluid">
 		<div class="row">
-			<div class="col-lg-8 col-lg-offset-2">
+			<div class="col-lg-1 col-lg-offset-1">
+				<div class="row">
+					<div id="entity-frequencies-list" class="btn-group-vertical" role="group" aria-label="Most common entities">
+					</div>
+				</div>
+			</div>
+			<div class="col-lg-8">
 				<div class="row">
 					<div id="chart-container">
 						<div id="chart-placeholder"></div>
 					</div>
 				</div>
 				<div class="row">
-					<canvas id="main-navi-canvas" class='img-responsive' width="1200"
-						height="650">
+					<canvas id="main-navi-canvas" class='img-responsive' width="1200" height="650">
 	              	Sorry, your browser doesn't support the &lt;canvas&gt; element.
 	            	</canvas>
 				</div>
@@ -59,13 +64,15 @@
 	 		<div class="col-lg-1">
 				<div class="row">
 					<ul id="info-list" class="list-group">
-						<li class="list-group-item"><span id="n-documents"></span> documents</li>
+						<li class="list-group-item"><span id="n-documents"></span> docs</li>
 						<li class="list-group-item"><span id="n-entities"></span> entities</li>
-						<li class="list-group-item"><a href="#" id="show-ignored-entities"><span id="number-ignored-entities"></span> ignored entities</a></li>
+						<li class="list-group-item"><a href="#" id="show-ignored-entities"><span id="number-ignored-entities"></span> ignored</a></li>
+						<li class="list-group-item" id="date-range-begin-panel">From: <strong><span id="date-range-begin"></span></strong></li>
+						<li class="list-group-item" id="date-range-end-panel">To: <strong><span id="date-range-end"></span></strong></li>
 					</ul>
 				</div>
 				<div class="row">
-					<div id="document-ids-list" class="btn-group-vertical" role="group" aria-label="...">
+					<div id="document-ids-list" class="btn-group-vertical" role="group" aria-label="List of documents">
 					</div>
 				</div>
 			</div>

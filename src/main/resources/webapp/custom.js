@@ -1,5 +1,7 @@
 var MAX_ENTITY_FONT_SIZE = 260
 var MIN_ENTITY_FONT_SIZE = 8
+var SHOWN_DOCUMENTS = 20
+var MAX_ENTITY_LENGTH = 20
 var filterEntities = []
 var ignoredEntities = []
 var dateRangeBegin = null
@@ -8,13 +10,13 @@ var dateRangeEnd = null
 $("#chart-placeholder").bind("plotselected", function(event, ranges) {
 	dateRangeBegin = parseInt(ranges.xaxis.from.toFixed(1));
 	dateRangeEnd = parseInt(ranges.xaxis.to.toFixed(1));
-	redrawAll();
+	redrawAllExceptChart();
 });
 
 $("#chart-placeholder").bind("plotunselected", function(event) {
 	dateRangeBegin = null;
 	dateRangeEnd = null;
-	redrawAll();
+	redrawAllExceptChart();
 });
 
 $("#show-ignored-entities").click(function() {
@@ -30,11 +32,31 @@ $(document).ready(redrawAll());
 
 ignoreEntityButtonClicked(null);
 
-function redrawAll() {
+function redrawAllExceptChart() {
 	updateFilterMenu()
 	fillIn()
-	populateChart()
 	populateIgnoredEntities()
+	updateDateRangeValues()
+}
+
+function redrawAll() {
+	populateChart();
+	redrawAllExceptChart();
+}
+
+function updateDateRangeValues() {
+	if (dateRangeBegin == null)
+		$("#date-range-begin-panel").hide();
+	else {
+		$("#date-range-begin-panel").show();
+		$("#date-range-begin").html(new Date(dateRangeBegin).toLocaleDateString());
+	}
+	if (dateRangeEnd == null)
+		$("#date-range-end-panel").hide();
+	else {
+		$("#date-range-end-panel").show();
+		$("#date-range-end").html(new Date(dateRangeEnd).toLocaleDateString());
+	}
 }
 
 function populateIgnoredEntities(){
@@ -155,9 +177,7 @@ function ignoreEntityButtonClicked(entity) {
 	});
 }
 
-function entityClicked(item) {
-	var entity = item[0]
-
+function entityClicked(entity) {
 	if (filterEntities.indexOf(entity) < 0)
 		filterEntities.push(entity);
 
@@ -210,9 +230,30 @@ function fillIn() {
 									       ]
 									)
 						});
+						
+						$("#entity-frequencies-list").empty();
+						$.each(data.frequencies.slice(0, SHOWN_DOCUMENTS),
+								function(i, freq) {
+									$("#entity-frequencies-list").append(
+										$("<button>")
+										.attr("class", "btn btn-default")
+										.attr("entity", freq.entity)
+										.click(function(item) {entityClicked(freq.entity)})
+										.html(freq.entity.length > MAX_ENTITY_LENGTH ?
+												freq.entity.substring(0,MAX_ENTITY_LENGTH) + "... "
+												: freq.entity + " ")
+										.append(
+											$("<span>")
+											.attr("class", "badge")
+											.html(freq.frequency)
+										)
+										
+									
+									)
+						});
 
 						$("#document-ids-list").empty();
-						$.each(data.document_ids.slice(0, 20), function(i, docId) {
+						$.each(data.document_ids.slice(0, SHOWN_DOCUMENTS), function(i, docId) {
 							$("#document-ids-list").append(
 									$("<button>")
 									.attr("class", "btn btn-default")
@@ -227,7 +268,8 @@ function fillIn() {
 						var c = document.getElementById("main-navi-canvas");
 						WordCloud(c, {
 							list : listFrequencies,
-							click : entityClicked,
+							click : function(item) {entityClicked(item[0])},
+							shuffle : false,
 						});
 
 					}).fail(function(jqxhr, textStatus, error) {
@@ -255,7 +297,7 @@ function populateChart() {
 				},
 				xaxis : {
 					mode : "time",
-					tickDecimals : 0
+					tickDecimals : 0,
 				},
 				yaxis : {
 					min : 0

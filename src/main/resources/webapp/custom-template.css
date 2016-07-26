@@ -29,3 +29,8 @@ body {
 #clear-entity-filter-button {
 	margin-left: 6px;
 }
+
+#entity-frequencies-list .btn {
+	padding: 3px 15px;
+	white-space: normal;
+}
