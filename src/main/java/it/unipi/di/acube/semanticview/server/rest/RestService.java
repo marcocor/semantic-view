@@ -41,6 +41,7 @@ import com.google.common.collect.Multiset;
 
 import it.unipi.di.acube.semanticview.Annotation;
 import it.unipi.di.acube.semanticview.Document;
+import it.unipi.di.acube.semanticview.server.Storage;
 
 /**
  * @author Marco Cornolti
@@ -51,10 +52,10 @@ public class RestService {
 	private final static Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 	private final static Map<String, Document> keyToDocs = new HashMap<>();
 	private final static Map<String, Set<Annotation>> keyToEntities = new HashMap<>();
-	private final static Set<String> ignoredEntities = new HashSet<>();
+	private static Storage storage;
 	private static final float DISCARD_OUTLIER_RATIO = 0.01f;
 
-	public static void initialize(String documentDirectory, String entityDirectory) throws FileNotFoundException, IOException {
+	public static void initialize(String documentDirectory, String entityDirectory, String storagePath) throws FileNotFoundException, IOException {
 		LOG.info("Reading documents from {}, entities from {}", documentDirectory, entityDirectory);
 		File[] documentFileNames = new File(documentDirectory).listFiles();
 		File[] entitiesFileNames = new File(entityDirectory).listFiles();
@@ -88,6 +89,8 @@ public class RestService {
 			entityParser.close();
 		}
 		LOG.info("Loaded {} documents ({} with entities), {} entities", keyToDocs.size(), keyToEntities.size(), nEntities);
+		
+		storage = new Storage(storagePath);
 	}
 
 	private static String[] parseEntities(String entitiesStr) {
@@ -150,11 +153,22 @@ public class RestService {
 	@Path("/ignore")
 	@Produces({ MediaType.APPLICATION_JSON })
 	public String ignoreEntity(@QueryParam("entity") String entity) throws JSONException {
-		ignoredEntities.add(entity);
+		if (entity != null && !entity.isEmpty())
+			storage.ignoredEntities.add(entity);
 		JSONObject result = new JSONObject();
-		result.put("ignored", entity);
-		result.put("ignored-entities", ignoredEntities.size());
+		JSONArray ignoredEntitiesJson = new JSONArray();
+		for (String e : storage.ignoredEntities.stream().sorted().collect(Collectors.toList()))
+			ignoredEntitiesJson.put(e);
+		result.put("ignoredEntities", ignoredEntitiesJson);
 		return result.toString();
+	}
+
+	@GET
+	@Path("/unignore")
+	@Produces({ MediaType.APPLICATION_JSON })
+	public String unignoreEntity(@QueryParam("entity") String entity) throws JSONException {
+		storage.ignoredEntities.remove(entity);
+		return ignoreEntity(null);
 	}
 
 	@GET
@@ -223,11 +237,11 @@ public class RestService {
 		for (String key : keyToEntities.keySet().stream().filter(k -> filterDocumentByDate(k, begin, end))
 		        .collect(Collectors.toList())) {
 			Set<Annotation> annotations = keyToEntities.get(key);
-			if (Arrays.stream(entities).filter(e -> !ignoredEntities.contains(e)).allMatch(e -> annotations.stream()
-			        .filter(a -> !ignoredEntities.contains(a.entityTitle)).anyMatch(a -> a.entityTitle.equals(e)))) {
+			if (Arrays.stream(entities).filter(e -> !storage.ignoredEntities.contains(e)).allMatch(e -> annotations.stream()
+			        .filter(a -> !storage.ignoredEntities.contains(a.entityTitle)).anyMatch(a -> a.entityTitle.equals(e)))) {
 				matchedKeys.add(key);
 				for (Annotation a : annotations)
-					if (!ignoredEntities.contains(a.entityTitle))
+					if (!storage.ignoredEntities.contains(a.entityTitle))
 						if (!frequencies.containsKey(a.entityTitle))
 							frequencies.put(a.entityTitle, 1);
 						else

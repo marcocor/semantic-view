@@ -30,10 +30,10 @@ public class ServerMain {
 	 * @throws IOException
 	 * @throws FileNotFoundException
 	 */
-	public static void startServer(String serverUri, String documentsDir, String entitiesDir)
+	public static void startServer(String serverUri, String documentsDir, String entitiesDir, String storagePath)
 	        throws FileNotFoundException, IOException {
 		LOG.info("Initializing Semantic View services.");
-		RestService.initialize(documentsDir, entitiesDir);
+		RestService.initialize(documentsDir, entitiesDir, storagePath);
 
 		ResourceConfig rc = new ResourceConfig().packages("it.unipi.di.acube.semanticview.server.rest");
 		rc.property(ServerProperties.RESPONSE_SET_STATUS_OVER_SEND_ERROR, "true");
@@ -74,10 +74,11 @@ public class ServerMain {
 		options.addOption(Option.builder("p").required().hasArg().argName("PORT").desc("TCP port to listen.").longOpt("port").build());
 		options.addOption(Option.builder("d").required().hasArg().argName("DOC_PATH").desc("Path to directory containing document CSVs.").longOpt("documents-dir").build());
 		options.addOption(Option.builder("e").required().hasArg().argName("ENTITIES_PATH").desc("Path to directory containing entities CSVs.").longOpt("entities-dir").build());
+		options.addOption(Option.builder("s").required().hasArg().argName("STORAGE_PATH").desc("Path to store Semantic View internal data.").longOpt("storage-path").build());
 		CommandLine line = parser.parse(options, args);
 
 		String serverUri = String.format("http://%s:%d/rest", line.getOptionValue("host", "localhost"),
 		        Integer.parseInt(line.getOptionValue("port", "8080")));
-		startServer(serverUri, line.getOptionValue("documents-dir"), line.getOptionValue("entities-dir"));
+		startServer(serverUri, line.getOptionValue("documents-dir"), line.getOptionValue("entities-dir"), line.getOptionValue("storage-path"));
 	}
 }

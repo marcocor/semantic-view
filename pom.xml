@@ -34,6 +34,8 @@
                                 <argument>${sv.documents-dir}</argument>
                                 <argument>--entities-dir</argument>
                                 <argument>${sv.entities-dir}</argument>
+                                <argument>--storage-path</argument>
+                                <argument>${sv.storage-path}</argument>
                             </arguments>
                         </configuration>
 
@@ -91,10 +93,16 @@
             <version>1.7.21</version>
         </dependency>
         <dependency>
-            <groupId>com.google.collections</groupId>
-            <artifactId>google-collections</artifactId>
-            <version>1.0-rc2</version>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+            <version>19.0</version>
         </dependency>
+        <dependency>
+            <groupId>org.mapdb</groupId>
+            <artifactId>mapdb</artifactId>
+            <version>3.0.1</version>
+        </dependency>
+
     </dependencies>
 
     <build>
