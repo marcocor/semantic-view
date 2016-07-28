@@ -8,13 +8,12 @@ import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import org.glassfish.grizzly.http.server.HttpServer;
 import org.glassfish.grizzly.http.server.StaticHttpHandler;
+import org.glassfish.grizzly.servlet.WebappContext;
 import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpServerFactory;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.server.ServerProperties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import it.unipi.di.acube.semanticview.server.rest.RestService;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -23,6 +22,7 @@ import java.net.URI;
 
 public class ServerMain {
 	private final static Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+    private static final String JERSEY_SERVLET_CONTEXT_PATH = "";
 
 	/**
 	 * Starts Grizzly HTTP server exposing Semantic View JAX-RS resources.
@@ -33,14 +33,18 @@ public class ServerMain {
 	public static void startServer(String serverUri, String documentsDir, String entitiesDir, String storagePath)
 	        throws FileNotFoundException, IOException {
 		LOG.info("Initializing Semantic View services.");
-		RestService.initialize(documentsDir, entitiesDir, storagePath);
+        WebappContext context = new WebappContext("WebappContext", JERSEY_SERVLET_CONTEXT_PATH);
+        context.setInitParameter(ContextListener.DOCUMENT_DIR_PARAMETER, documentsDir);
+        context.setInitParameter(ContextListener.ENTITIES_DIR_PARAMETER, entitiesDir);
+        context.setInitParameter(ContextListener.STORAGE_PATH_PARAMETER, storagePath);
 
 		ResourceConfig rc = new ResourceConfig().packages("it.unipi.di.acube.semanticview.server.rest");
 		rc.property(ServerProperties.RESPONSE_SET_STATUS_OVER_SEND_ERROR, "true");
-		StaticHttpHandler staticHandler = new StaticHttpHandler("src/main/resources/webapp/");
+		StaticHttpHandler staticHandler = new StaticHttpHandler("src/main/webapp/");
 
 		HttpServer httpServer = GrizzlyHttpServerFactory.createHttpServer(URI.create(serverUri), rc);
 		httpServer.getServerConfiguration().addHttpHandler(staticHandler, "/");
+        context.deploy(httpServer);
 
 		Runtime.getRuntime().addShutdownHook(new Thread(new Runnable() {
 			@Override

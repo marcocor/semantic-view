@@ -1,35 +1,27 @@
 package it.unipi.di.acube.semanticview.server.rest;
 
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
-import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.time.ZoneOffset;
-import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.stream.Collectors;
 import java.util.Set;
 import java.util.Vector;
+import java.util.stream.Collectors;
 
+import javax.servlet.ServletContext;
 import javax.ws.rs.DefaultValue;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
+import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 
 import org.apache.commons.collections4.comparators.ReverseComparator;
-import org.apache.commons.csv.CSVFormat;
-import org.apache.commons.csv.CSVParser;
-import org.apache.commons.csv.CSVRecord;
 import org.codehaus.jettison.json.JSONArray;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
@@ -40,7 +32,6 @@ import com.google.common.collect.HashMultiset;
 import com.google.common.collect.Multiset;
 
 import it.unipi.di.acube.semanticview.Annotation;
-import it.unipi.di.acube.semanticview.Document;
 import it.unipi.di.acube.semanticview.server.Storage;
 
 /**
@@ -50,48 +41,10 @@ import it.unipi.di.acube.semanticview.server.Storage;
 @Path("/")
 public class RestService {
 	private final static Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
-	private final static Map<String, Document> keyToDocs = new HashMap<>();
-	private final static Map<String, Set<Annotation>> keyToEntities = new HashMap<>();
-	private static Storage storage;
 	private static final float DISCARD_OUTLIER_RATIO = 0.01f;
-
-	public static void initialize(String documentDirectory, String entityDirectory, String storagePath) throws FileNotFoundException, IOException {
-		LOG.info("Reading documents from {}, entities from {}", documentDirectory, entityDirectory);
-		File[] documentFileNames = new File(documentDirectory).listFiles();
-		File[] entitiesFileNames = new File(entityDirectory).listFiles();
-
-		for (File docFileName : documentFileNames) {
-			CSVParser docParser = new CSVParser(new FileReader(docFileName),
-			        CSVFormat.DEFAULT.withHeader("key", "title", "body", "time"));
-			for (CSVRecord docRecord : docParser) {
-				String key = docRecord.get("key");
-				String title = docRecord.get("title");
-				String body = docRecord.get("body");
-				LocalDateTime time = LocalDateTime.parse(docRecord.get("time"), DateTimeFormatter.ISO_DATE_TIME);
-				keyToDocs.put(key, new Document(key, title, body, time));
-			}
-			docParser.close();
-		}
-
-		long nEntities = 0;
-		for (File entityFileName : entitiesFileNames) {
-			CSVParser entityParser = new CSVParser(new FileReader(entityFileName),
-			        CSVFormat.DEFAULT.withHeader("key", "entity", "score", "time"));
-			for (CSVRecord entityRecord : entityParser) {
-				String key = entityRecord.get("key");
-				String title = entityRecord.get("entity");
-				float score = Float.parseFloat(entityRecord.get("score"));
-				if (!keyToEntities.containsKey(key))
-					keyToEntities.put(key, new HashSet<>());
-				keyToEntities.get(key).add(new Annotation(key, title, score));
-				nEntities++;
-			}
-			entityParser.close();
-		}
-		LOG.info("Loaded {} documents ({} with entities), {} entities", keyToDocs.size(), keyToEntities.size(), nEntities);
-		
-		storage = new Storage(storagePath);
-	}
+	
+	@Context 
+	ServletContext context;
 
 	private static String[] parseEntities(String entitiesStr) {
 		return Arrays.stream(entitiesStr.split("\\$\\$\\$")).filter(e -> !e.isEmpty()).toArray(String[]::new);
@@ -129,12 +82,12 @@ public class RestService {
 		return ordered.subList(begin, end + 1);
 	}
 
-	private static boolean filterDocumentByDate(String k, LocalDate begin, LocalDate end) {
+	private static boolean filterDocumentByDate(String k, LocalDate begin, LocalDate end, Storage s) {
 		if (begin != null)
-			if (keyToDocs.get(k).date.toLocalDate().isBefore(begin))
+			if (s.keyToDocs.get(k).date.toLocalDate().isBefore(begin))
 				return false;
 		if (end != null)
-			if (keyToDocs.get(k).date.toLocalDate().isAfter(end))
+			if (s.keyToDocs.get(k).date.toLocalDate().isAfter(end))
 				return false;
 		return true;
 	}
@@ -143,9 +96,10 @@ public class RestService {
 	@Path("/document")
 	@Produces({ MediaType.APPLICATION_JSON })
 	public String getDocument(@QueryParam("docId") String documentId) throws JSONException {
+		Storage s = (Storage) context.getAttribute("storage");
 		JSONObject result = new JSONObject();
-		result.put("body", keyToDocs.get(documentId).body);
-		result.put("title", keyToDocs.get(documentId).title);
+		result.put("body", s.keyToDocs.get(documentId).body);
+		result.put("title", s.keyToDocs.get(documentId).title);
 		return result.toString();
 	}
 
@@ -153,11 +107,12 @@ public class RestService {
 	@Path("/ignore")
 	@Produces({ MediaType.APPLICATION_JSON })
 	public String ignoreEntity(@QueryParam("entity") String entity) throws JSONException {
+		Storage s = (Storage) context.getAttribute("storage");
 		if (entity != null && !entity.isEmpty())
-			storage.ignoredEntities.add(entity);
+			s.ignoredEntities.add(entity);
 		JSONObject result = new JSONObject();
 		JSONArray ignoredEntitiesJson = new JSONArray();
-		for (String e : storage.ignoredEntities.stream().sorted().collect(Collectors.toList()))
+		for (String e : s.ignoredEntities.stream().sorted().collect(Collectors.toList()))
 			ignoredEntitiesJson.put(e);
 		result.put("ignoredEntities", ignoredEntitiesJson);
 		return result.toString();
@@ -167,7 +122,8 @@ public class RestService {
 	@Path("/unignore")
 	@Produces({ MediaType.APPLICATION_JSON })
 	public String unignoreEntity(@QueryParam("entity") String entity) throws JSONException {
-		storage.ignoredEntities.remove(entity);
+		Storage s = (Storage) context.getAttribute("storage");
+		s.ignoredEntities.remove(entity);
 		return ignoreEntity(null);
 	}
 
@@ -179,23 +135,25 @@ public class RestService {
 		String[] entities = parseEntities(entitiesStr);
 		LocalDate begin = parseBeginDate(dateRangeStr);
 		LocalDate end = parseEndDate(dateRangeStr);
-		HashMap<String, Multiset<LocalDate>> entityToDateCount = new HashMap<>();
+		
+		Storage s = (Storage) context.getAttribute("storage");
 
+		HashMap<String, Multiset<LocalDate>> entityToDateCount = new HashMap<>();
 		if (entities.length == 0)
 			entityToDateCount.put("all", HashMultiset.create());
 		for (String entity : entities)
 			entityToDateCount.put(entity, HashMultiset.create());
 
-		for (String key : keyToEntities.keySet().stream().filter(k -> filterDocumentByDate(k, begin, end))
+		for (String key : s.keyToEntities.keySet().stream().filter(k -> filterDocumentByDate(k, begin, end, s))
 		        .collect(Collectors.toList())) {
-			Set<Annotation> annotations = keyToEntities.get(key);
+			Set<Annotation> annotations = s.keyToEntities.get(key);
 			if (entities.length > 0)
 				for (String entity : entities) {
 					if (annotations.stream().anyMatch(a -> a.entityTitle.equals(entity)))
-						entityToDateCount.get(entity).add(keyToDocs.get(key).date.toLocalDate());
+						entityToDateCount.get(entity).add(s.keyToDocs.get(key).date.toLocalDate());
 				}
 			else
-				entityToDateCount.get("all").add(keyToDocs.get(key).date.toLocalDate());
+				entityToDateCount.get("all").add(s.keyToDocs.get(key).date.toLocalDate());
 		}
 
 		JSONArray result = new JSONArray();
@@ -232,16 +190,18 @@ public class RestService {
 
 		LOG.info("Entities in query ({}): {}", entities.length, entitiesStr);
 
+		Storage s = (Storage) context.getAttribute("storage");
+
 		List<String> matchedKeys = new Vector<>();
 		Map<String, Integer> frequencies = new HashMap<>();
-		for (String key : keyToEntities.keySet().stream().filter(k -> filterDocumentByDate(k, begin, end))
+		for (String key : s.keyToEntities.keySet().stream().filter(k -> filterDocumentByDate(k, begin, end, s))
 		        .collect(Collectors.toList())) {
-			Set<Annotation> annotations = keyToEntities.get(key);
-			if (Arrays.stream(entities).filter(e -> !storage.ignoredEntities.contains(e)).allMatch(e -> annotations.stream()
-			        .filter(a -> !storage.ignoredEntities.contains(a.entityTitle)).anyMatch(a -> a.entityTitle.equals(e)))) {
+			Set<Annotation> annotations = s.keyToEntities.get(key);
+			if (Arrays.stream(entities).filter(e -> !s.ignoredEntities.contains(e)).allMatch(e -> annotations.stream()
+			        .filter(a -> !s.ignoredEntities.contains(a.entityTitle)).anyMatch(a -> a.entityTitle.equals(e)))) {
 				matchedKeys.add(key);
 				for (Annotation a : annotations)
-					if (!storage.ignoredEntities.contains(a.entityTitle))
+					if (!s.ignoredEntities.contains(a.entityTitle))
 						if (!frequencies.containsKey(a.entityTitle))
 							frequencies.put(a.entityTitle, 1);
 						else
@@ -264,7 +224,6 @@ public class RestService {
 			jsonFrequency.put("frequency", entry.getValue());
 			jsonFrequencies.put(jsonFrequency);
 		}
-		;
 
 		JSONObject result = new JSONObject();
 		result.put("frequencies", jsonFrequencies);
