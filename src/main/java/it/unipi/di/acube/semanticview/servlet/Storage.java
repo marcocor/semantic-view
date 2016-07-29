@@ -1,4 +1,4 @@
-package it.unipi.di.acube.semanticview.server;
+package it.unipi.di.acube.semanticview.servlet;
 
 import java.io.File;
 import java.io.FileNotFoundException;

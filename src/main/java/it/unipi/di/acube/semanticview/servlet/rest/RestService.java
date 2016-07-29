@@ -1,4 +1,4 @@
-package it.unipi.di.acube.semanticview.server.rest;
+package it.unipi.di.acube.semanticview.servlet.rest;
 
 import java.lang.invoke.MethodHandles;
 import java.time.LocalDate;
@@ -32,7 +32,7 @@ import com.google.common.collect.HashMultiset;
 import com.google.common.collect.Multiset;
 
 import it.unipi.di.acube.semanticview.Annotation;
-import it.unipi.di.acube.semanticview.server.Storage;
+import it.unipi.di.acube.semanticview.servlet.Storage;
 
 /**
  * @author Marco Cornolti
