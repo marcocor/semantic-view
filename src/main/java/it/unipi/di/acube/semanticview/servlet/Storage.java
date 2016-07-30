@@ -106,6 +106,8 @@ public class Storage {
 	}
 
 	public void shutdown() {
+		keyToDocs.clear();
+		keyToEntities.clear();
 		db.close();
 	}
 
