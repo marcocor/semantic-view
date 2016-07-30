@@ -1,30 +1,20 @@
 package it.unipi.di.acube.semanticview.servlet.rest;
 
+import java.io.*;
 import java.lang.invoke.MethodHandles;
-import java.time.LocalDate;
-import java.time.ZoneOffset;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.time.*;
+import java.util.*;
 import java.util.Map.Entry;
-import java.util.Set;
-import java.util.Vector;
 import java.util.stream.Collectors;
 
 import javax.servlet.ServletContext;
-import javax.ws.rs.DefaultValue;
-import javax.ws.rs.GET;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
-import javax.ws.rs.QueryParam;
+import javax.ws.rs.*;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 
 import org.apache.commons.collections4.comparators.ReverseComparator;
-import org.codehaus.jettison.json.JSONArray;
-import org.codehaus.jettison.json.JSONException;
-import org.codehaus.jettison.json.JSONObject;
+import org.codehaus.jettison.json.*;
+import org.glassfish.jersey.media.multipart.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,6 +22,7 @@ import com.google.common.collect.HashMultiset;
 import com.google.common.collect.Multiset;
 
 import it.unipi.di.acube.semanticview.Annotation;
+import it.unipi.di.acube.semanticview.importers.JiraImporter;
 import it.unipi.di.acube.semanticview.servlet.Storage;
 
 /**
@@ -231,6 +222,38 @@ public class RestService {
 		result.put("entities", frequencies.values().stream().mapToInt(i -> i.intValue()).sum());
 		result.put("documents", jsonKeys.length());
 
+		return result.toString();
+	}
+
+	@POST
+	@Path("/upload-jira")
+	@Consumes(MediaType.MULTIPART_FORM_DATA)
+	@Produces({ MediaType.APPLICATION_JSON })
+	public String uploadFile(@DefaultValue("true") @FormDataParam("enabled") boolean enabled,
+	        @FormDataParam("files") InputStream uploadedInputStream,
+	        @FormDataParam("files") FormDataContentDisposition fileDetail) throws JSONException, IOException, InterruptedException {
+		LOG.info("Uploading file: {}", fileDetail.getFileName());
+
+		Storage s = (Storage) context.getAttribute("storage");
+
+		File uploadedFile = s.saveUploadedFile(fileDetail.getFileName(), uploadedInputStream);
+		JiraImporter.importFile(uploadedFile,
+		        context.getInitParameter("it.unipi.di.acube.semanticview.annotate-jira-python-script"), s.getStorageDir(),
+		        context.getInitParameter("it.unipi.di.acube.semanticview.tagme-token"),
+		        context.getInitParameter("it.unipi.di.acube.semanticview.annotation-lang"));
+
+		synchronized (s) {
+			s.update();
+		}
+
+		JSONObject result = new JSONObject();
+		JSONArray filesJson = new JSONArray();
+
+		JSONObject fileJson = new JSONObject();
+		fileJson.put("name", fileDetail.getFileName());
+		filesJson.put(fileJson);
+
+		result.put("files", filesJson);
 		return result.toString();
 	}
 }

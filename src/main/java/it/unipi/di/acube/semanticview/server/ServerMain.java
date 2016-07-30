@@ -36,8 +36,7 @@ public class ServerMain {
 	        throws FileNotFoundException, IOException {
 		LOG.info("Initializing Semantic View services.");
         WebappContext context = new WebappContext("WebappContext", JERSEY_SERVLET_CONTEXT_PATH);
-        context.setInitParameter(ContextListener.DOCUMENT_DIR_PARAMETER, documentsDir);
-        context.setInitParameter(ContextListener.ENTITIES_DIR_PARAMETER, entitiesDir);
+        context.setInitParameter(ContextListener.STORAGE_DIR_PARAMETER, documentsDir);
         context.setInitParameter(ContextListener.STORAGE_PATH_PARAMETER, storagePath);
 
 		ResourceConfig rc = new ResourceConfig().packages("it.unipi.di.acube.semanticview.server.rest");

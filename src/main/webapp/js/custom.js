@@ -23,6 +23,10 @@ $("#show-ignored-entities").click(function() {
 	$("#ignored-entities-modal").modal();
 });
 
+$("#show-upload-panel").click(function() {
+	$("#upload-panel-modal").modal();
+});
+
 $("#clear-entity-filter-button").click(function(){
 	filterEntities = [];
 	redrawAll();
@@ -31,6 +35,28 @@ $("#clear-entity-filter-button").click(function(){
 $(document).ready(redrawAll());
 
 ignoreEntityButtonClicked(null);
+
+
+// Initialize the jQuery File Upload widget:
+$('#fileupload').fileupload({
+    // Uncomment the following to send cross-domain cookies:
+    //xhrFields: {withCredentials: true},
+    url: 'rest/upload-jira',
+    	dataType: 'json',
+    	done: function (e, data) {
+    	    $.each(data.result.files, function (index, file) {
+    	        $('<p/>').text(file.name).appendTo('#files');
+    	    });
+    	},
+    	progressall: function (e, data) {
+    	    var progress = parseInt(data.loaded / data.total * 100, 10);
+    	    $('#progress .progress-bar').css(
+    	        'width',
+    	        progress + '%'
+    	    );
+    	}
+    	}).prop('disabled', !$.support.fileInput)
+    	.parent().addClass($.support.fileInput ? undefined : 'disabled');
 
 function redrawAllExceptChart() {
 	updateFilterMenu()

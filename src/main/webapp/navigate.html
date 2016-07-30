@@ -11,7 +11,7 @@
 <title>Semantic View navigator</title>
 
 <link href="css/bootstrap.min.css" rel="stylesheet">
-
+<link href="css/jquery.fileupload.css" rel="stylesheet">
 <link href="custom-template.css" rel="stylesheet">
 
 </head>
@@ -67,6 +67,11 @@
 						<li class="list-group-item"><span id="n-documents"></span> docs</li>
 						<li class="list-group-item"><span id="n-entities"></span> entities</li>
 						<li class="list-group-item"><a href="#" id="show-ignored-entities"><span id="number-ignored-entities"></span> ignored</a></li>
+						<li class="list-group-item">
+							<button id="show-upload-panel" type="button"
+								class="btn btn-primary glyphicon glyphicon-upload btn-xs"
+								aria-hidden="true"></button> upload files
+						</li>
 						<li class="list-group-item" id="date-range-begin-panel">From: <strong><span id="date-range-begin"></span></strong></li>
 						<li class="list-group-item" id="date-range-end-panel">To: <strong><span id="date-range-end"></span></strong></li>
 					</ul>
@@ -118,13 +123,48 @@
 		</div>
 	</div>
 
-	<script
-		src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+	<div id="upload-panel-modal" class="modal fade" role="dialog">
+		<div class="modal-dialog">
+			<div class="modal-content">
+				<div class="modal-header">
+					<button type="button" class="close" data-dismiss="modal">&times;</button>
+					<h4 class="modal-title">
+						<span>Upload new documents</span>
+					</h4>
+				</div>
+				<div class="modal-body">
+					<div class="container-fluid">
+						<div class="row">
+							<div class="col-lg-10 col-lg-offset-1">
+								<div class="row">
+									<span class="btn btn-success fileinput-button"> <i class="glyphicon glyphicon-plus"></i> <span>Select files...</span> <input id="fileupload" type="file" name="files" multiple>
+									</span> <br> <br>
+									<div id="progress" class="progress">
+										<div class="progress-bar progress-bar-success"></div>
+									</div>
+									<div id="files" class="files"></div>
+								</div>
+							</div>
+						</div>
+					</div>
+
+				</div>
+				<div class="modal-footer">
+					<button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
 	<script src="js/bootstrap.min.js"></script>
 	<script src="js/wordcloud2.js"></script>
 	<script src="js/jquery.flot.js"></script>
 	<script src="js/jquery.flot.selection.js"></script>
 	<script src="js/jquery.flot.time.js"></script>
+	<script src="js/jquery.ui.widget.js"></script>
+	<script src="js/jquery.fileupload.js"></script>
+	<script src="js/jquery.iframe-transport.js"></script>
 	<script src="js/custom.js"></script>
 </body>
 </html>
