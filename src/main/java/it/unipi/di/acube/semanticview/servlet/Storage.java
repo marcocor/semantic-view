@@ -1,5 +1,8 @@
 package it.unipi.di.acube.semanticview.servlet;
 
+import it.unipi.di.acube.semanticview.Annotation;
+import it.unipi.di.acube.semanticview.Document;
+
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
@@ -12,8 +15,11 @@ import java.time.format.DateTimeFormatter;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.Vector;
+import java.util.stream.IntStream;
 
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
@@ -26,9 +32,6 @@ import org.mapdb.IndexTreeList;
 import org.mapdb.Serializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import it.unipi.di.acube.semanticview.Annotation;
-import it.unipi.di.acube.semanticview.Document;
 
 public class Storage {
 	public final static Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
@@ -45,8 +48,35 @@ public class Storage {
 	private static final String DOCUMENTS_DIR = "docs";
 	private static final String ENTITIES_DIR = "entities";
 
-	public Storage(String storageDirectory, String storagePath, String uploadDirectory)
-	        throws FileNotFoundException, IOException {
+	public static List<String> orderedIntersection(List<List<String>> orderedLists) {
+		int[] indexes = new int[orderedLists.size()];
+		List<String> orderedResult = new Vector<>();
+		String max = null;
+
+		while (IntStream.range(0, indexes.length).allMatch(i -> indexes[i] < orderedLists.get(i).size()))
+			for (int i = 0; i < orderedLists.size(); i++) {
+				if (max == null)
+					max = orderedLists.get(i).get(indexes[i]);
+				List<String> listI = orderedLists.get(i);
+				while (indexes[i] < listI.size() && max.compareTo(listI.get(indexes[i])) > 0)
+					indexes[i]++;
+				if (indexes[i] == listI.size())
+					break;
+				if (indexes[i] < listI.size() && !max.equals(listI.get(indexes[i]))) {
+					max = listI.get(indexes[i]);
+					break;
+				}
+				while (indexes[i] + 1 < listI.size() && max.equals(listI.get(indexes[i] + 1)))
+					indexes[i]++;
+				if (i == orderedLists.size() - 1) {
+					orderedResult.add(max);
+					indexes[0]++;
+				}
+			}
+		return orderedResult;
+	}
+
+	public Storage(String storageDirectory, String storagePath, String uploadDirectory) throws FileNotFoundException, IOException {
 		this.documentDirectory = new File(storageDirectory, DOCUMENTS_DIR);
 		this.entityDirectory = new File(storageDirectory, ENTITIES_DIR);
 		this.storageDirectory = new File(storageDirectory);
@@ -61,8 +91,8 @@ public class Storage {
 		IOUtils.copy(is, new FileOutputStream(output));
 		return output;
 	}
-	
-	public void load() throws FileNotFoundException, IOException{
+
+	public void load() throws FileNotFoundException, IOException {
 		LOG.info("Opening Semantic View database.");
 		this.db = DBMaker.fileDB(storagePath).fileMmapEnable().closeOnJvmShutdown().make();
 		this.ignoredEntities = (IndexTreeList<String>) db.indexTreeList("ignoredEntities", Serializer.STRING).createOrOpen();
@@ -72,8 +102,7 @@ public class Storage {
 		File[] entitiesFileNames = entityDirectory.listFiles();
 
 		for (File docFileName : documentFileNames) {
-			CSVParser docParser = new CSVParser(new FileReader(docFileName),
-			        CSVFormat.DEFAULT.withHeader("key", "title", "body", "time"));
+			CSVParser docParser = new CSVParser(new FileReader(docFileName), CSVFormat.DEFAULT.withHeader("key", "title", "body", "time"));
 			for (CSVRecord docRecord : docParser) {
 				String key = docRecord.get("key");
 				String title = docRecord.get("title");
@@ -86,8 +115,7 @@ public class Storage {
 
 		long nEntities = 0;
 		for (File entityFileName : entitiesFileNames) {
-			CSVParser entityParser = new CSVParser(new FileReader(entityFileName),
-			        CSVFormat.DEFAULT.withHeader("key", "entity", "score", "time"));
+			CSVParser entityParser = new CSVParser(new FileReader(entityFileName), CSVFormat.DEFAULT.withHeader("key", "entity", "score", "time"));
 			for (CSVRecord entityRecord : entityParser) {
 				String key = entityRecord.get("key");
 				String title = entityRecord.get("entity");
@@ -112,7 +140,7 @@ public class Storage {
 	}
 
 	public void update() throws FileNotFoundException, IOException {
-		//TODO: do it more intelligently
+		// TODO: do it more intelligently
 		shutdown();
 		load();
 	}
