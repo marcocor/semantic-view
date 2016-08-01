@@ -33,8 +33,8 @@ import it.unipi.di.acube.semanticview.servlet.Storage;
 public class RestService {
 	private final static Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 	private static final float DISCARD_OUTLIER_RATIO = 0.01f;
-	
-	@Context 
+
+	@Context
 	ServletContext context;
 
 	private static String[] parseEntities(String entitiesStr) {
@@ -126,7 +126,7 @@ public class RestService {
 		String[] entities = parseEntities(entitiesStr);
 		LocalDate begin = parseBeginDate(dateRangeStr);
 		LocalDate end = parseEndDate(dateRangeStr);
-		
+
 		Storage s = (Storage) context.getAttribute("storage");
 
 		HashMap<String, Multiset<LocalDate>> entityToDateCount = new HashMap<>();
@@ -183,25 +183,34 @@ public class RestService {
 
 		Storage s = (Storage) context.getAttribute("storage");
 
-		List<String> matchedKeys = new Vector<>();
 		Map<String, Integer> frequencies = new HashMap<>();
-		for (String key : s.keyToEntities.keySet().stream().filter(k -> filterDocumentByDate(k, begin, end, s))
-		        .collect(Collectors.toList())) {
+
+		Collection<String> matchedKeys = null;
+		if (entities.length > 0) {
+			List<List<String>> docListsToIntersect = new Vector<>();
+			for (String entity : entities)
+				if (!s.ignoredEntities.contains(entity))
+					docListsToIntersect.add(s.entityToKeys.get(entity));
+
+			matchedKeys = Storage.orderedIntersection(docListsToIntersect);
+		} else
+			matchedKeys = s.keyToEntities.keySet();
+
+		matchedKeys = matchedKeys.stream().filter(k -> filterDocumentByDate(k, begin, end, s)).sorted()
+		        .collect(Collectors.toList());
+
+		for (String key : matchedKeys) {
 			Set<Annotation> annotations = s.keyToEntities.get(key);
-			if (Arrays.stream(entities).filter(e -> !s.ignoredEntities.contains(e)).allMatch(e -> annotations.stream()
-			        .filter(a -> !s.ignoredEntities.contains(a.entityTitle)).anyMatch(a -> a.entityTitle.equals(e)))) {
-				matchedKeys.add(key);
-				for (Annotation a : annotations)
-					if (!s.ignoredEntities.contains(a.entityTitle))
-						if (!frequencies.containsKey(a.entityTitle))
-							frequencies.put(a.entityTitle, 1);
-						else
-							frequencies.put(a.entityTitle, frequencies.get(a.entityTitle) + 1);
-			}
+			for (Annotation a : annotations)
+				if (!s.ignoredEntities.contains(a.entityTitle))
+					if (!frequencies.containsKey(a.entityTitle))
+						frequencies.put(a.entityTitle, 1);
+					else
+						frequencies.put(a.entityTitle, frequencies.get(a.entityTitle) + 1);
 		}
 
 		JSONArray jsonKeys = new JSONArray();
-		matchedKeys.stream().sorted().forEach(key -> jsonKeys.put(key));
+		matchedKeys.forEach(key -> jsonKeys.put(key));
 
 		JSONArray jsonFrequencies = new JSONArray();
 
@@ -231,7 +240,8 @@ public class RestService {
 	@Produces({ MediaType.APPLICATION_JSON })
 	public String uploadFile(@DefaultValue("true") @FormDataParam("enabled") boolean enabled,
 	        @FormDataParam("files") InputStream uploadedInputStream,
-	        @FormDataParam("files") FormDataContentDisposition fileDetail) throws JSONException, IOException, InterruptedException {
+	        @FormDataParam("files") FormDataContentDisposition fileDetail)
+	                throws JSONException, IOException, InterruptedException {
 		LOG.info("Uploading file: {}", fileDetail.getFileName());
 
 		Storage s = (Storage) context.getAttribute("storage");
