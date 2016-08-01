@@ -21,7 +21,7 @@ import org.slf4j.LoggerFactory;
 import com.google.common.collect.HashMultiset;
 import com.google.common.collect.Multiset;
 
-import it.unipi.di.acube.semanticview.Annotation;
+import it.unipi.di.acube.semanticview.Tag;
 import it.unipi.di.acube.semanticview.importers.JiraImporter;
 import it.unipi.di.acube.semanticview.servlet.Storage;
 
@@ -137,10 +137,10 @@ public class RestService {
 
 		for (String key : s.keyToEntities.keySet().stream().filter(k -> filterDocumentByDate(k, begin, end, s))
 		        .collect(Collectors.toList())) {
-			Set<Annotation> annotations = s.keyToEntities.get(key);
+			Set<Tag> tags = s.keyToEntities.get(key);
 			if (entities.length > 0)
 				for (String entity : entities) {
-					if (annotations.stream().anyMatch(a -> a.entityTitle.equals(entity)))
+					if (tags.stream().anyMatch(a -> a.entityTitle.equals(entity)))
 						entityToDateCount.get(entity).add(s.keyToDocs.get(key).date.toLocalDate());
 				}
 			else
@@ -200,13 +200,13 @@ public class RestService {
 		        .collect(Collectors.toList());
 
 		for (String key : matchedKeys) {
-			Set<Annotation> annotations = s.keyToEntities.get(key);
-			for (Annotation a : annotations)
-				if (!s.ignoredEntities.contains(a.entityTitle))
-					if (!frequencies.containsKey(a.entityTitle))
-						frequencies.put(a.entityTitle, 1);
+			Set<Tag> tags = s.keyToEntities.get(key);
+			for (Tag t : tags)
+				if (!s.ignoredEntities.contains(t.entityTitle))
+					if (!frequencies.containsKey(t.entityTitle))
+						frequencies.put(t.entityTitle, 1);
 					else
-						frequencies.put(a.entityTitle, frequencies.get(a.entityTitle) + 1);
+						frequencies.put(t.entityTitle, frequencies.get(t.entityTitle) + 1);
 		}
 
 		JSONArray jsonKeys = new JSONArray();

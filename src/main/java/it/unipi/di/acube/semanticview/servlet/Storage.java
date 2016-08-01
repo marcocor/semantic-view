@@ -1,6 +1,6 @@
 package it.unipi.di.acube.semanticview.servlet;
 
-import it.unipi.di.acube.semanticview.Annotation;
+import it.unipi.di.acube.semanticview.Tag;
 import it.unipi.di.acube.semanticview.Document;
 
 import java.io.File;
@@ -37,7 +37,7 @@ import org.slf4j.LoggerFactory;
 public class Storage {
 	public final static Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 	public final Map<String, Document> keyToDocs = new HashMap<>();
-	public final Map<String, Set<Annotation>> keyToEntities = new HashMap<>();
+	public final Map<String, Set<Tag>> keyToEntities = new HashMap<>();
 	public final Map<String, List<String>> entityToKeys = new HashMap<>();
 	private DB db;
 	public IndexTreeList<String> ignoredEntities;
@@ -57,7 +57,6 @@ public class Storage {
 
 		while (IntStream.range(0, indexes.length).allMatch(i -> indexes[i] < orderedLists.get(i).size()))
 			for (int i = 0; i < orderedLists.size(); i++) {
-				if (max == null)
 					max = orderedLists.get(i).get(indexes[i]);
 				List<String> listI = orderedLists.get(i);
 				while (indexes[i] < listI.size() && max.compareTo(listI.get(indexes[i])) > 0)
@@ -124,7 +123,7 @@ public class Storage {
 				float score = Float.parseFloat(entityRecord.get("score"));
 				if (!keyToEntities.containsKey(key))
 					keyToEntities.put(key, new HashSet<>());
-				keyToEntities.get(key).add(new Annotation(key, title, score));
+				keyToEntities.get(key).add(new Tag(key, title, score));
 				if (!entityToKeys.containsKey(title))
 					entityToKeys.put(title, new Vector<>());
 				entityToKeys.get(title).add(key);
