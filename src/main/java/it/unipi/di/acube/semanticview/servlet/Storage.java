@@ -12,6 +12,7 @@ import java.io.InputStream;
 import java.lang.invoke.MethodHandles;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -37,6 +38,7 @@ public class Storage {
 	public final static Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 	public final Map<String, Document> keyToDocs = new HashMap<>();
 	public final Map<String, Set<Annotation>> keyToEntities = new HashMap<>();
+	public final Map<String, List<String>> entityToKeys = new HashMap<>();
 	private DB db;
 	public IndexTreeList<String> ignoredEntities;
 	public final File uploadDirectory;
@@ -123,10 +125,17 @@ public class Storage {
 				if (!keyToEntities.containsKey(key))
 					keyToEntities.put(key, new HashSet<>());
 				keyToEntities.get(key).add(new Annotation(key, title, score));
+				if (!entityToKeys.containsKey(title))
+					entityToKeys.put(title, new Vector<>());
+				entityToKeys.get(title).add(key);
 				nEntities++;
 			}
 			entityParser.close();
 		}
+
+		for (List<String> docs: entityToKeys.values())
+			Collections.sort(docs);
+
 		LOG.info("Loaded {} documents ({} with entities), {} entities", keyToDocs.size(), keyToEntities.size(), nEntities);
 
 		if (!this.uploadDirectory.isDirectory() || !this.uploadDirectory.canWrite())
