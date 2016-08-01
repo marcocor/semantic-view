@@ -1,7 +1,9 @@
 package it.unipi.di.acube.semanticview.importers;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.lang.invoke.MethodHandles;
 
 import org.slf4j.Logger;
@@ -13,11 +15,21 @@ public class JiraImporter {
 	public static void importFile(File uploadedFile, String annotateJiraPythonScript, File storageDir, String gcubeToken,
 	        String lang) throws IOException, InterruptedException {
 		// TODO: OMG this is ugly.
-		String cmd = String.format("python %s --infiles %s --outdir %s --gcube-token %s --lang %s", annotateJiraPythonScript,
-		        uploadedFile.getAbsolutePath(), storageDir.getAbsolutePath(), gcubeToken, lang);
-		LOG.info("Executing {}", cmd);
-		Process pr = Runtime.getRuntime().exec(cmd);
-		pr.waitFor();
+		String cmd = "/usr/bin/python";
+
+		ProcessBuilder pb = new ProcessBuilder(cmd, annotateJiraPythonScript, "--infiles", uploadedFile.getAbsolutePath(),
+		        "--outdir", storageDir.getAbsolutePath(), "--gcube-token", gcubeToken, "--lang", lang);
+		LOG.info("Executing {}", String.join(" ", pb.command()));
+		pb.redirectErrorStream(true);
+		Process process = pb.start();
+
+		BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
+		String line;
+		while ((line = reader.readLine()) != null)
+			LOG.info(line);
+
+		process.waitFor();
+		LOG.info("Python process done for file {}", uploadedFile.getAbsolutePath());
 	}
 
 }
