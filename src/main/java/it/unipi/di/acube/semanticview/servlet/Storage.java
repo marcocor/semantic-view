@@ -39,8 +39,9 @@ public class Storage {
 	public final Map<String, Document> keyToDocs = new HashMap<>();
 	public final Map<String, Set<Tag>> keyToEntities = new HashMap<>();
 	public final Map<String, List<String>> entityToKeys = new HashMap<>();
+	private final Set<String> ignoredEntities = new HashSet<>();
 	private DB db;
-	public IndexTreeList<String> ignoredEntities;
+	private IndexTreeList<String> dbIgnoredEntities;
 	public final File uploadDirectory;
 	private final File documentDirectory;
 	private final File entityDirectory;
@@ -96,7 +97,8 @@ public class Storage {
 	public void load() throws FileNotFoundException, IOException {
 		LOG.info("Opening Semantic View database.");
 		this.db = DBMaker.fileDB(storagePath).fileMmapEnable().closeOnJvmShutdown().make();
-		this.ignoredEntities = (IndexTreeList<String>) db.indexTreeList("ignoredEntities", Serializer.STRING).createOrOpen();
+		this.dbIgnoredEntities = (IndexTreeList<String>) db.indexTreeList("ignoredEntities", Serializer.STRING).createOrOpen();
+		ignoredEntities.addAll(dbIgnoredEntities);
 
 		LOG.info("Reading documents from {}, entities from {}, storing in {}", documentDirectory, entityDirectory, storagePath);
 		File[] documentFileNames = documentDirectory.listFiles();
@@ -155,5 +157,25 @@ public class Storage {
 
 	public File getStorageDir() {
 		return storageDirectory;
+	}
+
+	public Set<String> getIgnoredEntities() {
+		return ignoredEntities;
+	}
+
+	public boolean isIgnoredEntity(String entity) {
+		return ignoredEntities.contains(entity);
+	}
+
+	public void addIgnoredEntities(String entity) {
+		if (ignoredEntities.contains(entity))
+			return;
+		ignoredEntities.add(entity);
+		dbIgnoredEntities.add(entity);
+	}
+
+	public void unignoreEntity(String entity) {
+		ignoredEntities.remove(entity);
+		dbIgnoredEntities.remove(entity);
 	}
 }

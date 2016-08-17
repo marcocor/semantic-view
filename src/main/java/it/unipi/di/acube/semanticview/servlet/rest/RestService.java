@@ -4,7 +4,6 @@ import java.io.*;
 import java.lang.invoke.MethodHandles;
 import java.time.*;
 import java.util.*;
-import java.util.Map.Entry;
 import java.util.stream.Collectors;
 
 import javax.servlet.ServletContext;
@@ -12,7 +11,6 @@ import javax.ws.rs.*;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 
-import org.apache.commons.collections4.comparators.ReverseComparator;
 import org.codehaus.jettison.json.*;
 import org.glassfish.jersey.media.multipart.*;
 import org.slf4j.Logger;
@@ -20,8 +18,10 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.HashMultiset;
 import com.google.common.collect.Multiset;
+import com.google.common.collect.Multiset.Entry;
 
 import it.unipi.di.acube.semanticview.Tag;
+import it.unipi.di.acube.semanticview.Utils;
 import it.unipi.di.acube.semanticview.importers.JiraImporter;
 import it.unipi.di.acube.semanticview.servlet.Storage;
 
@@ -100,10 +100,10 @@ public class RestService {
 	public String ignoreEntity(@QueryParam("entity") String entity) throws JSONException {
 		Storage s = (Storage) context.getAttribute("storage");
 		if (entity != null && !entity.isEmpty())
-			s.ignoredEntities.add(entity);
+			s.addIgnoredEntities(entity);
 		JSONObject result = new JSONObject();
 		JSONArray ignoredEntitiesJson = new JSONArray();
-		for (String e : s.ignoredEntities.stream().sorted().collect(Collectors.toList()))
+		for (String e : s.getIgnoredEntities().stream().sorted().collect(Collectors.toList()))
 			ignoredEntitiesJson.put(e);
 		result.put("ignoredEntities", ignoredEntitiesJson);
 		return result.toString();
@@ -114,7 +114,7 @@ public class RestService {
 	@Produces({ MediaType.APPLICATION_JSON })
 	public String unignoreEntity(@QueryParam("entity") String entity) throws JSONException {
 		Storage s = (Storage) context.getAttribute("storage");
-		s.ignoredEntities.remove(entity);
+		s.unignoreEntity(entity);
 		return ignoreEntity(null);
 	}
 
@@ -183,13 +183,11 @@ public class RestService {
 
 		Storage s = (Storage) context.getAttribute("storage");
 
-		Map<String, Integer> frequencies = new HashMap<>();
-
 		Collection<String> matchedKeys = null;
 		if (entities.length > 0) {
 			List<List<String>> docListsToIntersect = new Vector<>();
 			for (String entity : entities)
-				if (!s.ignoredEntities.contains(entity))
+				if (!s.isIgnoredEntity(entity))
 					docListsToIntersect.add(s.entityToKeys.get(entity));
 
 			matchedKeys = Storage.orderedIntersection(docListsToIntersect);
@@ -199,36 +197,32 @@ public class RestService {
 		matchedKeys = matchedKeys.stream().filter(k -> filterDocumentByDate(k, begin, end, s)).sorted()
 		        .collect(Collectors.toList());
 
+		Multiset<String> frequencies = HashMultiset.create();
 		for (String key : matchedKeys) {
 			Set<Tag> tags = s.keyToEntities.get(key);
 			for (Tag t : tags)
-				if (!s.ignoredEntities.contains(t.entityTitle))
-					if (!frequencies.containsKey(t.entityTitle))
-						frequencies.put(t.entityTitle, 1);
-					else
-						frequencies.put(t.entityTitle, frequencies.get(t.entityTitle) + 1);
+				frequencies.add(t.entityTitle);
 		}
+		frequencies.removeIf(e -> s.isIgnoredEntity(e));
 
 		JSONArray jsonKeys = new JSONArray();
 		matchedKeys.forEach(key -> jsonKeys.put(key));
 
 		JSONArray jsonFrequencies = new JSONArray();
 
-		List<Entry<String, Integer>> orderedFreq = new Vector<>(frequencies.entrySet());
-		orderedFreq.sort(new ReverseComparator<Entry<String, Integer>>(Map.Entry.comparingByValue()));
-		if (limit >= 0)
-			orderedFreq = orderedFreq.subList(0, Math.min(limit, orderedFreq.size()));
-		for (Entry<String, Integer> entry : orderedFreq) {
+		TreeSet<Entry<String>> sortedFreqs = Utils.getTopK(frequencies, limit);
+		
+		for (Multiset.Entry<String> entry : sortedFreqs.descendingSet()) {
 			JSONObject jsonFrequency = new JSONObject();
-			jsonFrequency.put("entity", entry.getKey());
-			jsonFrequency.put("frequency", entry.getValue());
+			jsonFrequency.put("entity", entry.getElement());
+			jsonFrequency.put("frequency", entry.getCount());
 			jsonFrequencies.put(jsonFrequency);
 		}
 
 		JSONObject result = new JSONObject();
 		result.put("frequencies", jsonFrequencies);
 		result.put("document_ids", jsonKeys);
-		result.put("entities", frequencies.values().stream().mapToInt(i -> i.intValue()).sum());
+		result.put("entities", frequencies.size());
 		result.put("documents", jsonKeys.length());
 
 		return result.toString();
